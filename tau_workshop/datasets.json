@@ -1,0 +1,10 @@
+{
+    "youtubemix": {
+        "repo_id": "krandiash/youtubemix",
+        "file_path": "youtube_mix.zip"
+    },
+    "youtubebigband": {
+        "repo_id": "galbezalel/youtube_bigband",
+        "file_path": "youtube_bigband.zip"
+    }
+}
