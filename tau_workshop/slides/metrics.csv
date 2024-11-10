@@ -1,0 +1,14 @@
+        Test metric,YouTubeMix - 8 layers,YouTubeBigBand - 8 layers,YouTubeBigBand - 2 layers
+        final/test/accuracy,0.4203284681,0.2766689062,0.274307102
+        final/test/accuracy@10,0.9719890952,0.8476241231,0.8452669382
+        final/test/accuracy@3,0.8351296782,0.5846688747,0.5805157423
+        final/test/accuracy@5,0.9241486192,0.7164889574,0.7128702998
+        final/test/bpb,2.063964605,3.149125099,3.16355896
+        final/test/loss,1.430631161,2.182806969,2.192811012
+        final/val/accuracy,0.4274106026,0.200661391,0.1991965473
+        final/val/accuracy@10,0.9736651778,0.8029823303 0.8013696671
+        final/val/accuracy@3,0.8423588276,0.4834408164,0.4809091985
+        final/val/accuracy@5,0.9283464551,0.6362654567,0.6337321401
+        final/val/bpb,2.029698849,3.614607096,3.624292135
+        final/val/loss,1.40688026,2.505454779,2.512167692
+    

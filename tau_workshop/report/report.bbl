@@ -1,0 +1,38 @@
+\begin{thebibliography}{1}
+\providecommand{\url}[1]{#1}
+\csname url@rmstyle\endcsname
+\providecommand{\newblock}{\relax}
+\providecommand{\bibinfo}[2]{#2}
+\providecommand\BIBentrySTDinterwordspacing{\spaceskip=0pt\relax}
+\providecommand\BIBentryALTinterwordstretchfactor{4}
+\providecommand\BIBentryALTinterwordspacing{\spaceskip=\fontdimen2\font plus
+\BIBentryALTinterwordstretchfactor\fontdimen3\font minus \fontdimen4\font\relax}
+\providecommand\BIBforeignlanguage[2]{{%
+\expandafter\ifx\csname l@#1\endcsname\relax
+\typeout{** WARNING: IEEEtran.bst: No hyphenation pattern has been}%
+\typeout{** loaded for the language `#1'. Using the pattern for}%
+\typeout{** the default language instead.}%
+\else
+\language=\csname l@#1\endcsname
+\fi
+#2}}
+
+\bibitem{goel2022itsrawaudiogeneration}
+\BIBentryALTinterwordspacing
+K.~Goel, A.~Gu, C.~Donahue, and C.~Ré, ``It's raw! audio generation with state-space models,'' 2022. [Online]. Available: \url{https://arxiv.org/abs/2202.09729}
+\BIBentrySTDinterwordspacing
+
+
+\bibitem{gu2022efficientlymodelinglongsequences}
+\BIBentryALTinterwordspacing
+A.~Gu, K.~Goel, and C.~Ré, ``Efficiently modeling long sequences with structured state spaces,'' 2022. [Online]. Available: \url{https://arxiv.org/abs/2111.00396}
+\BIBentrySTDinterwordspacing
+
+
+\bibitem{https://doi.org/10.7916/d8n58mhv}
+\BIBentryALTinterwordspacing
+C.~Raffel, ``Learning-based methods for comparing sequences, with applications to audio-to-midi alignment and matching,'' 2016. [Online]. Available: \url{https://academiccommons.columbia.edu/doi/10.7916/D8N58MHV}
+\BIBentrySTDinterwordspacing
+
+
+\end{thebibliography}

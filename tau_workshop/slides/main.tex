@@ -1,0 +1,233 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Welcome to Overleaf --- just edit your LaTeX on the left,
+% and we'll compile it for you on the right. If you open the
+% 'Share' menu, you can invite other users to edit at the same
+% time. See www.overleaf.com/learn for more info. Enjoy!
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\documentclass{beamer}
+\usepackage[style=verbose,backend=bibtex]{biblatex}
+\usepackage{csvsimple}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,        % Enables link colors
+    linkcolor=blue,         % Color of internal links (e.g., sections)
+    urlcolor=blue            % Color of external links (e.g., \href and \url)
+    }
+\graphicspath{ {./images/} }
+\addbibresource{biblio.bib} 
+    
+%Information to be included in the title page:
+\title{Deep Learning Workshop - Music Generation via S4}
+\author{Gal Bezalel}
+\institute{Tel-Aviv University}
+\date{10 November 2024}
+
+\begin{document}
+
+\frame{\titlepage}
+
+\begin{frame}
+    \frametitle{Agenda}
+    \tableofcontents
+\end{frame}
+
+
+
+\section{Motivation}
+\begin{frame}
+    \frametitle{Agenda}
+    \tableofcontents[currentsection]
+\end{frame}
+\begin{frame}
+    \frametitle{Motivation}
+    \begin{itemize}
+    \item Can we use SSM to generate high-fidelity music?
+    \item Can we do it with a small-scale model ($\ll 10^9$ params)?
+    \item Can it be productized?
+    \end{itemize}
+\end{frame}
+
+\section{Preliminaries}
+\begin{frame}
+    \frametitle{Agenda}
+    \tableofcontents[currentsection]
+\end{frame}
+\begin{frame}
+    \frametitle{Preliminaries - S4\footcite{gu2022efficientlymodelinglongsequences}}
+    \begin{itemize}
+        \item A state-space model: \begin{align*}
+            \frac{dx}{dt} &= Ax(t) + Bu(t) \\
+            y(t) &= Cx(t)
+        \end{align*}
+        \item Discretizing $dt$  allows us to apply the model on sequential data $\rightarrow$ $dt$ is a learnable parameter!
+        \item Moreover, we can unroll the (discrete) model and create a convolutional kernel (a huge filter).
+        \item $A$ should be HiPPO matrix, modeling Legendre polynomial coefficients $\rightarrow$ good for long sequences, but compute intensive.
+        \begin{itemize}
+            \item Instead, using Diagonal + Low Rank (DPLR: $A = \lambda + pq^\ast$) factorization speeds up computation.
+        \end{itemize}
+        \item More neat math in the \href{https://iclr-blog-track.github.io/2022/03/25/annotated-s4/}{Annotated S4}.
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Perliminaries - SaShiMi\footcite{goel2022itsrawaudiogeneration}}
+    \begin{itemize}
+        \item S4 block - a S4 unit with 2-layer FF with GELU activation, layer norm and skip connection.
+        \item Multiscale architecture: 
+        \begin{itemize}
+            \item Repeated S4 blocks with varying hidden dimension ($H = 2^k$).
+            \item Input is passed to the S4 block + down-sampled (pooling) for encoding,  up-sampled for decoding. 
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\section{Experiments}
+\begin{frame}
+    \frametitle{Agenda}
+    \tableofcontents[currentsection]
+\end{frame}
+
+\begin{frame}
+    \frametitle{Dataset}
+    \begin{itemize}
+        \item Original dataset used in the article\footcite{deepsound}: YouTubeMix
+        \begin{itemize} 
+            \item 4 hours of classical piano music.
+            \item A \href{https://necrashter.github.io/sashimi-796}{previous attempt} to replicate and improve NLL
+        \end{itemize}
+        \item \textbf{Our dataset: YouTubeBigBand\footcite{bigband}}
+            \begin{itemize}
+                \item 2 hours of jazz trio.
+                \item A more complex waveform (multiple instruments, percussion).
+                \item Improvisation is inherent.
+        \end{itemize}
+        \item Preprocessing (both):
+        \begin{itemize}
+            \item Resampled at 16khz
+            \item 1min chunks
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Experiment 1 - Complete Training of 8 Layers SaShiMi Model}
+    \begin{itemize}
+        \item Basically, replicate the original experiment, but with our Big Band dataset
+        \item 19M params
+        \item 1000 epochs, no regularization
+        \item Time: 4 days on a single A100 (in practice, over a week using spot GCP instance, Colab)
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Experiment 2 - Complete Training of \textit{Ablated} 2 Layers SaShiMi Model}
+    \begin{itemize}
+        \item As in the original article, validate the assumption that a smaller model can achieve similar results to larger model (and reduce costs).
+        \item 1.5M params
+        \item 1000 epochs (in the original article: 500 epochs), no regularization
+        \item Time: 50 hours on a single A100 (in practice, 2 days using spot GCP instance, Colab)
+    \end{itemize}
+\end{frame}
+
+\section{Results \& Demo}
+\begin{frame}
+    \frametitle{Agenda}
+    \tableofcontents[currentsection]
+\end{frame}
+
+\begin{frame}[fragile]
+    \frametitle{Metrics}
+    \begin{filecontents*}{metrics.csv}
+        Test metric,YouTubeMix - 8 layers,YouTubeBigBand - 8 layers,YouTubeBigBand - 2 layers
+        final/test/accuracy,0.4203284681,0.2766689062,0.274307102
+        final/test/accuracy@10,0.9719890952,0.8476241231,0.8452669382
+        final/test/accuracy@3,0.8351296782,0.5846688747,0.5805157423
+        final/test/accuracy@5,0.9241486192,0.7164889574,0.7128702998
+        final/test/bpb,2.063964605,3.149125099,3.16355896
+        final/test/loss,1.430631161,2.182806969,2.192811012
+        final/val/accuracy,0.4274106026,0.200661391,0.1991965473
+        final/val/accuracy@10,0.9736651778,0.8029823303	0.8013696671
+        final/val/accuracy@3,0.8423588276,0.4834408164,0.4809091985
+        final/val/accuracy@5,0.9283464551,0.6362654567,0.6337321401
+        final/val/bpb,2.029698849,3.614607096,3.624292135
+        final/val/loss,1.40688026,2.505454779,2.512167692
+    \end{filecontents*}
+    \resizebox{1.05\textwidth}{!}{ 
+    \csvautotabular{metrics.csv}
+    }
+\end{frame}
+
+\begin{frame}
+    \frametitle{Generation examples - Demo}
+    \begin{itemize}
+        \item \textcolor{purple}{$\bigstar $} We will listen to a few (cherry-picked...) generated examples
+        \item Generation is unbounded - can be conditioned (on a prefix of the dataset, up to $\sim$8s in our experiment) or not.
+        \item Default generation hyperparams are: Temperature = 1, Top-P: 1
+        \begin{itemize}
+            \item Traditional Temp. values (0.2-0.5) yielded samples with long, silent / noisy parts.
+            \item To preserve some consistency, we set Temp. = 0.8.
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+
+\section{Conclusions}
+\begin{frame}
+    \frametitle{Agenda}
+    \tableofcontents[currentsection]
+\end{frame}
+
+\begin{frame}
+    \frametitle{Have we met our expectations?}
+    \begin{itemize}
+        \item Can we use SSM to generate high-fidelity music? \textcolor{orange}{Potentially, yes.}
+        \item Can we do it with a small-scale model ($\ll 10^9$ params)? \textcolor{orange}{Potentially, yes.}
+        \item Can it be productized? \textcolor{red}{No.}
+        \begin{itemize}
+            \item \textcolor{red}{Currently, prompts are only taken from validation split}
+            \item \textcolor{orange}{Time: Takes 10 minutes to generate 10s samples using ablated model, 30 minutes using full models (still follows logarithmic scale though!)}
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Lessons learned}
+    \begin{itemize}
+        \item Audio generation is costly.
+        \item \textit{Good} audio generation is difficult (noted also by the original authors).
+        \item In practice:
+        \begin{itemize}
+            \item The ablated version is \textcolor{green}{\textit{indeed}} on-par with the deeper model.
+            \item High temperature works great in musical domains (creativity?)
+        \end{itemize}
+        \item The good stuff:
+        \begin{itemize}
+            \item Relatively cheap model with a promise
+            \item Experience with preprocessing audio
+            \item Experience with tools: Hydra, GCP
+        \end{itemize} 
+    \end{itemize}
+\end{frame}
+
+\begin{frame}
+    \frametitle{Action Items}
+    \begin{itemize}
+        \item Continue training, improve metrics - \textcolor{green}{WIP}
+        \item Experiment with regularization - \textcolor{orange}{it's possible to add dropout and weight decay, will be tested on ablated version}
+        \item "Productize" - find a way to use prompts from completely new data
+        \begin{itemize}
+        \item Condition on a short (few seconds), single prompt + concat the output
+        \item \textcolor{orange}{Could probably be engineered (create config, etc.)}
+        \end{itemize}
+        \item \textcolor{gray}{Many more things that might not be covered...}
+        \begin{itemize}
+            \item Audio signal: different sampling rate, quantization, chunk length.
+            \item Training: different LRs, fine-tuning, transfer learning.
+            \item Inference: grid search for Temp., Top-P.
+        \end{itemize}
+    \end{itemize}
+\end{frame}
+
+\end{document}

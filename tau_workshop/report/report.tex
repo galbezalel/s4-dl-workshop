@@ -1,0 +1,79 @@
+\documentclass[12pt]{article}
+
+\usepackage{url}
+\usepackage[colorlinks]{hyperref}
+
+\setlength{\oddsidemargin}{27mm}
+\setlength{\evensidemargin}{27mm}
+\setlength{\hoffset}{-1in}
+
+\setlength{\topmargin}{27mm}
+\setlength{\voffset}{-1in}
+\setlength{\headheight}{0pt}
+\setlength{\headsep}{0pt}
+
+\setlength{\textheight}{235mm}
+\setlength{\textwidth}{155mm}
+
+%\pagestyle{empty}
+\pagestyle{plain}
+
+\renewcommand{\thefootnote}{\fnsymbol{footnote}}
+\renewcommand{\labelitemi}{$\diamond$}
+
+\begin{document}
+\baselineskip 12pt
+
+\begin{center}
+\textbf{\Large Deep Learning Workshop - Project Report} \\
+\textbf{\Large Music Generation via S4} \\
+\vspace{1.6cc}
+{ \sc Gal Bezalel$^{\dagger}$}\\
+
+\vspace{0.3 cm}
+
+{\small $^{\dagger}$Tel Aviv University, galbezalel \{at\} mail.tau.ac.il}
+ \end{center}
+\vspace{1.6cc}
+
+\section{Overview} \label{form}
+This project is aimed at leveraging the recent advances in sequence modeling made by structured state-space models, 
+and explore how well those architectures can generate music, \textit{preferably using a small number of parameters  (up to $10^{9}$)}. 
+The base model to be investigated and trained is SaShiMi \cite{goel2022itsrawaudiogeneration}.
+
+\section{End product (system from user’s perspective)}
+The end product is straightforward: a user will input a prompt in the form of a music waveform. The system will generate a continuation based on this prompt, akin to a companion musician or a band mate. 
+Naturally - considerations concerning usability, functionality and performance will come into play:
+\begin{itemize}
+    \item From a product perspective, user's prompt need not a be strictly pre-known \texttt{.wav} file. Rather, the user should be able to dynamically choose the music source (e.g. from YouTube) and the system will take care of required conversions.
+    \item The backend model might be constrained by number of parameters, usable training data, etc. - and therefore may not generalize well for diverse pieces of music (e.g. different instruments, or genres). In order to compensate for such limitations, the frontend will guide the user towards reasonable prompts.
+\end{itemize}
+\section{Training and inference schemes}
+Model checkpoints, specifically for the YouTubeMix dataset, were made \href{https://huggingface.co/krandiash/sashimi-release}{available}.\\
+In terms of training, we consider the following schemas:
+\begin{itemize}
+    \item \textbf{Naive finetuning} - According to the article, training on the YouTubeMix dataset was done for 600K steps; So simply continuing training from the checkpoint could be done - first, for 150K steps in the hope of showing significant improvement in loss value, and continuing if so. Mixtures of the original pre-training dataset and new FT datasets should be used.
+    \item \textbf{Reparameterization} - The article mentions that the only parameter tying was done for $\Lambda $, for simplicity and stability. However, parameter tying for $\Delta$ in S4 is considered an important differentiator of this architecture from other Seq2Seq models. We will explore ways to fine-tune the model with additional parameters to optimize.
+    \item \textbf{Complete Pretraining} - Training the model from scratch could be feasible (see \nameref{marker}). We will test this on current maximal configuration (8 S4 blocks) and depending on available resources, consider adding expressive power, e.g. more blocks.
+\end{itemize} 
+Inference in the base model can be done conditionally (given a long enough prompt) or unconditionally (generate from scratch from the distribution captured in the parameters). Both of these options are interesting to investigate, and can be incorporated in the end product.
+Evaluation of the model post-training will be done similarly to the article - using negative log likelihood (NLL) on stratified test set.
+\section{Datasets}
+Suitable music datasets are common:
+\begin{itemize}
+    \item MIDI datasets (e.g. \href{https://colinraffel.com/projects/lmd/}{The Lakh MIDI Dataset} \cite{https://doi.org/10.7916/d8n58mhv}) can offer flexibility in isolating a specific track (e.g. piano), and some unified structure after sampling into waveform.
+    \item As mentioned in the original article \cite{goel2022itsrawaudiogeneration}, long audio tracks from YouTube can be downloaded and used. Further inspection of copyrights is required.
+\end{itemize}
+\section{Compute and storage requirements and options}\label{marker}
+As noted in the original article \cite{goel2022itsrawaudiogeneration}, the autoregressive versions of SaShiMi were trained on a single V100 GPU machine\footnote[1]{It was \href{https://github.com/state-spaces/s4/blob/main/models/sashimi/README.md}{mentioned} that in such setting, training took up to a week.}. This makes training on Google Colab (Pro subscription) feasible.
+However, if more advanced training schemas will be applied, a request for using TAU's GPU cluster might be made.
+
+\section{Third party tools and models to be used}
+
+The base model to be trained is SaShiMi \cite{goel2022itsrawaudiogeneration}, which is an adaptation of the original S4 model \cite{gu2022efficientlymodelinglongsequences} into the audio domain. 
+All S4 descendants are \href{https://github.com/state-spaces/s4/tree/main}{open source}, and \href{https://huggingface.co/necrashter/SaShiMi-796}{a reproduction} of the original article (claiming to have achieved better NLL) is also available.
+\\
+Training will be done on Google Colab (with Pro subscription).
+\bibliographystyle{IEEEannot}
+\bibliography{biblio}
+\end{document}
