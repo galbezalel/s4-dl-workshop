@@ -2,6 +2,8 @@
 
 \usepackage{url}
 \usepackage[colorlinks]{hyperref}
+\usepackage{csvsimple}
+\usepackage{graphicx}
 
 \setlength{\oddsidemargin}{27mm}
 \setlength{\evensidemargin}{27mm}
@@ -35,45 +37,138 @@
 {\small $^{\dagger}$Tel Aviv University, galbezalel \{at\} mail.tau.ac.il}
  \end{center}
 \vspace{1.6cc}
-
+\abstract
+Generating music is an exciting application of sequence modeling. We are utilizing an S4-based architecture called SaShiMi \cite{goel2022itsrawaudiogeneration} for generation of jazz music. The promise of S4 based architecture to handle \href{https://srush.github.io/annotated-s4/}{long-range dependencies} in sequences while capturing it with, potentially, order-of-magnitude less model parameters introduced a straight-forward project idea to work on with limited resources. While the results are not enjoyable per se, we show that the model can, unconditionally, generate at least medium fidelity music. Our findings show that the SaShiMi architecture may not be a good choice for generalized music generation (i.e. a marketable product level), and affirm the notion that obtaining reasonable results with deep learning models in the audio domain is still challenging. 
 \section{Overview} \label{form}
 This project is aimed at leveraging the recent advances in sequence modeling made by structured state-space models, 
-and explore how well those architectures can generate music, \textit{preferably using a small number of parameters  (up to $10^{9}$)}. 
+and explore how well those architectures can generate music, \textit{preferably using a small number of parameters  ($ \ll 10^{9}$)}. 
 The base model to be investigated and trained is SaShiMi \cite{goel2022itsrawaudiogeneration}.
 
 \section{End product (system from user’s perspective)}
-The end product is straightforward: a user will input a prompt in the form of a music waveform. The system will generate a continuation based on this prompt, akin to a companion musician or a band mate. 
+The ideal end product is straightforward: a user will input a music waveform as a prompt. The system will generate a continuation based on this prompt, akin to a companion musician or a band mate. Alternatively, the user could also enjoy unconditional generation ("improvisation").
+\\
 Naturally - considerations concerning usability, functionality and performance will come into play:
 \begin{itemize}
     \item From a product perspective, user's prompt need not a be strictly pre-known \texttt{.wav} file. Rather, the user should be able to dynamically choose the music source (e.g. from YouTube) and the system will take care of required conversions.
     \item The backend model might be constrained by number of parameters, usable training data, etc. - and therefore may not generalize well for diverse pieces of music (e.g. different instruments, or genres). In order to compensate for such limitations, the frontend will guide the user towards reasonable prompts.
 \end{itemize}
 \section{Training and inference schemes}
-Model checkpoints, specifically for the YouTubeMix dataset, were made \href{https://huggingface.co/krandiash/sashimi-release}{available}.\\
-In terms of training, we consider the following schemas:
+Originally, the following training schemas were considered:
 \begin{itemize}
-    \item \textbf{Naive finetuning} - According to the article, training on the YouTubeMix dataset was done for 600K steps; So simply continuing training from the checkpoint could be done - first, for 150K steps in the hope of showing significant improvement in loss value, and continuing if so. Mixtures of the original pre-training dataset and new FT datasets should be used.
-    \item \textbf{Reparameterization} - The article mentions that the only parameter tying was done for $\Lambda $, for simplicity and stability. However, parameter tying for $\Delta$ in S4 is considered an important differentiator of this architecture from other Seq2Seq models. We will explore ways to fine-tune the model with additional parameters to optimize.
+    \item \textbf{Naive finetuning} - According to the article, training on the YouTubeMix dataset was done for 600K steps; So simply continuing training from the \href{https://huggingface.co/krandiash/sashimi-release}{published checkpoint} could be done - first, for 150K steps in the hope of showing significant improvement in loss value, and continuing if so. Mixtures of the original pre-training dataset and new FT datasets should be used.
     \item \textbf{Complete Pretraining} - Training the model from scratch could be feasible (see \nameref{marker}). We will test this on current maximal configuration (8 S4 blocks) and depending on available resources, consider adding expressive power, e.g. more blocks.
-\end{itemize} 
-Inference in the base model can be done conditionally (given a long enough prompt) or unconditionally (generate from scratch from the distribution captured in the parameters). Both of these options are interesting to investigate, and can be incorporated in the end product.
-Evaluation of the model post-training will be done similarly to the article - using negative log likelihood (NLL) on stratified test set.
-\section{Datasets}
-Suitable music datasets are common:
-\begin{itemize}
-    \item MIDI datasets (e.g. \href{https://colinraffel.com/projects/lmd/}{The Lakh MIDI Dataset} \cite{https://doi.org/10.7916/d8n58mhv}) can offer flexibility in isolating a specific track (e.g. piano), and some unified structure after sampling into waveform.
-    \item As mentioned in the original article \cite{goel2022itsrawaudiogeneration}, long audio tracks from YouTube can be downloaded and used. Further inspection of copyrights is required.
 \end{itemize}
-\section{Compute and storage requirements and options}\label{marker}
-As noted in the original article \cite{goel2022itsrawaudiogeneration}, the autoregressive versions of SaShiMi were trained on a single V100 GPU machine\footnote[1]{It was \href{https://github.com/state-spaces/s4/blob/main/models/sashimi/README.md}{mentioned} that in such setting, training took up to a week.}. This makes training on Google Colab (Pro subscription) feasible.
-However, if more advanced training schemas will be applied, a request for using TAU's GPU cluster might be made.
+In practice, the \textbf{complete training} scheme, effectively replicating the original experiment detailed in the article, but on our own dataset - is the one that fits our end-goal. Moreover, the article demonstrates that \textit{ablated} versions of the model (specifically, a pruned version of only 2 S4 blocks, where expressive power is removed) have shown comparable results with the larger base model. As inference times were significant factor in guaranteeing satisfying user experience, we replicated this experiment as well with our dataset.
 
-\section{Third party tools and models to be used}
+Both versions of the model - the full 8 blocks and the ablated 2 blocks - were trained for 1000 epochs, with the default configuration of the original experiment (learning rate $\eta = 0.001$, no regularization). We note that we also trained an additional, regularized version of the ablated model (with a dropout rate of 0.2), but it has shown worse performance and thus we have not included it in our discussion to follow.
+
+Inference can be done conditionally, with a prefix from the validation set, or unconditionally (generate from scratch from the distribution captured in the parameters). The fact that conditional generation was constrained to the validation split of the original training dataset presented a challenge for our ideal end-product: even up to additional data acquisition and preprocessing, our trained model \textbf{is not able to generalize to other audio tracks} (even within the genre). 
+Thus, in our end-product demo - we will rely on unconditional generation, and supply conditional generation samples for reference. The upshot being that all generation is done solely with model parameters and no dependency on external data. For generation, we have used the default hyperparameters of temperature at 1.0, and top-p of 1. We found out that lower temperatures, such as 0.2 which are typical when using large language models, generate long, silent samples. Therefore, we did not experiment any further with inference hyperparameters.
+
+\section{Datasets}
+As mentioned in the original article \cite{goel2022itsrawaudiogeneration}, long audio tracks from YouTube can be downloaded and used. While the original YouTubeMix dataset introduced classical piano tracks, we were interested in more complex musical patterns - those that combine multiple instruments (including percussion), and some inherent unpredictability. This, naturally, gave rise to the idea of using jazz music, played by a big band.
+
+The YouTubeBigBand dataset \cite{bigband} originates in a \href{https://www.youtube.com/watch?v=I4KAKqF4mjE}{2 hour long Youtube video} of smooth jazz music played by a big band. In the spirit of preserving the original experiment's setting, this track was converted from stereo to mono, resampled at 16khz and chunked into 1 minute \texttt{.wav} tracks. However, we did not quantized the data into 8 bits, and kept it's original 32 bits quantization. This might have had an effect on our model's performance.
+
+\section{Compute and storage}\label{marker}
+As noted in the original article \cite{goel2022itsrawaudiogeneration}, the autoregressive versions of SaShiMi were trained on a single V100 GPU machine\footnote[1]{It was \href{https://github.com/state-spaces/s4/blob/main/models/sashimi/README.md}{mentioned} that in such setting, training took up to a week.}. This made training on Google Colab feasible (within reasonable costs of the Pro+ subscription). However, with time passing by, in order to accelerate training times, avoid unexpected interrupts and training multiple models in parallel, a high-compute VM instance with A100 GPU was utilized on GCP. Indeed, this resulted in a faster single epoch time for the 8 layers base model (10 minutes on A100 compared to 17 minutes on V100, when it is the only model being trained).
+
+\section{Third party tools and models used}
 
 The base model to be trained is SaShiMi \cite{goel2022itsrawaudiogeneration}, which is an adaptation of the original S4 model \cite{gu2022efficientlymodelinglongsequences} into the audio domain. 
-All S4 descendants are \href{https://github.com/state-spaces/s4/tree/main}{open source}, and \href{https://huggingface.co/necrashter/SaShiMi-796}{a reproduction} of the original article (claiming to have achieved better NLL) is also available.
-\\
-Training will be done on Google Colab (with Pro subscription).
+All S4 descendants are \href{https://github.com/state-spaces/s4/tree/main}{open source}. As mentioned in the original repository, the training and generation can be done by invoking the \texttt{train.py} and \texttt{generate.py} scripts, with a Hydra configuration (either stored in a \texttt{.yaml} file under \texttt{./configs/} directory, or passed as arguments to the command). The training process and checkpoints are managed using PyTorch-Lightning. 
+
+The S4 architecture employs a compute-intensive convolutional Cauchy kernel, for which the repository supplied 2 alternative implementations: a custom CUDA kernel (requires installation), or using \href{https://www.kernel-operations.io/keops/index.html}{PyKeOps}. We found that PyKeOps performs significantly faster (up to 10x) on GCP/Colab envs.
+
+The above-mentioned dependencies and additional ones are detailed in the standard \texttt{requirements.txt} file. We note that  in the original repository, this file was outdated and incorrectly formatted. We provide an updated version of this file that can be installed via \texttt{pip} and other Python package managers.
+
+\section{Results}
+\autoref{table:metrics} shows the evaluation metrics output by the \texttt{checkpoints/evaluate.py} for our models, as well as for the original model trained on YouTubeMix. Clearly, our experiments have not matched any of the original experiment metrics. This could be explained by the fact that our dataset consists of less samples (2 hours compared to 4 hours), and, as mentioned earlier, the samples themselves introduce a more complex waveform. 
+
+Another interesting finding it that, indeed, the ablated 2 layers version has comparable performance with the full 8 layers version, and in some metrics even beats it. 
+
+In the context of our application, supervised learning metrics are not necessarily sufficient in determining whether generated output of the model will sound good (the original article have used Mechanical Turk crowd sourcing for opinionated scoring). However, it indicated that generated samples will not follow the original dataset faithfully.
+
+Indeed, when listening to the generated samples, the musical structure is incoherent: Samples begin with about 2-3 seconds of the big band playing (what could be described as a) song, and then the sample degenerates into some kind of \textit{instruments tuning session}: a high pitch note from the brass section is played constantly, with small changes, and hints of percussion and bass can be heard throughout. The authors \href{https://github.com/galbezalel/s4-dl-workshop/tree/main/models/sashimi#unconditional-generation}{mention} that:
+\begin{quotation}
+    Samples generated by autoregressive models can often have "runaway noise", where a sample suddenly degenerates into pure noise. Intuitively, this happens when the model finds itself in an unseen state that it struggles to generalize to, which is often the case for extremely long sequence generation. We found that SaShiMi also suffers from this problem when generating long sequences, and fixing this issue for autoregressive generation is an interesting research direction.
+\end{quotation}
+In our generation samples, we haven't encountered pure noise - that is, some resemblance to the original dataset is always maintained. However, indeed, as the generation length grew, the sound became more ambient and incoherent, and the above-mentioned hints became more sparse.
+\begin{table}
+    \caption{Comparison of evaluation metrics between the original experiment and our experiment.}
+    \resizebox{1.05\textwidth}{!}{ 
+        \csvautotabular{metrics.csv}
+        }
+    \label{table:metrics}
+\end{table}
+\section{Lessons learned}
+Above all, this project served as a learning practice. We can point out the following lessons:
+\begin{itemize}
+    \item Audio generation is costly, and \textit{good} audio generation is difficult. This is also noted by the original authors. A lot of compromises were made in order to provide results within time and resource constraints; ideally, were this going to be productized - we would have wanted to train on a larger dataset, with higher quality (keeping original sampling rate and stereo channels), and adjust the model accordingly.
+    \item Despite these challenges, working with out-of-the-box repository has made experimentation with different configurations really easy, and probing interim checkpoints was shown to be a good strategy for deciding whether we should continue with an experiment or not (e.g. when we tried dropout).
+    \item As previously mentioned, the ablated version is \textit{indeed} on-par with the deeper model. This is an ongoing and exciting research direction \cite{gromov2024unreasonableineffectivenessdeeperlayers} that could reduce future costs, as well as generation time while providing high-quality results.
+    \item Experience gained with infrastructure tools (GCP) is invaluable.
+\end{itemize}
+
+\section{Potential extensions (future work)}
+Naturally, many future action items and ideas come to mind:
+\begin{itemize}
+    \item Naively, working with a larger dataset and seeing whether this suffices to improve metrics and generation results.
+    \item Hyperparameters grid search: 
+    \begin{itemize}
+     \item Aside from regularization, trying a larger learning rate is a classic experiment.
+     \item Since the ablated version has shown promise, an immediate question would be about the "embedding space": what would have happened if we enlarge the S4 block state and/or FF layers width? The default configuration sets \texttt{model.layer.d\_state=64} as well as \texttt{model.d\_model=64}. Due to time limitations we weren't able to experiment with doubling those dimensions.
+    \end{itemize}
+    \item "Productize" the model: some careful engineering of the configurations and the \texttt{dataloader} module might have resulted in the ability to load any dataset as prompt for conditional generation. However, the results might have been more disappointing due to reliance on our specific training set waveform.
+\end{itemize}
+\section{Try our model}
+Our fork is available at \href{https://github.com/galbezalel/s4-dl-workshop}{https://github.com/galbezalel/s4-dl-workshop}. The code will only run in CUDA-enabled environments, with minimum 2GB of GPU memory. 
+We supply both the 8 layers and 2 layers weights under the \texttt{checkpoints} directory. Checkpoints are also available via \href{https://huggingface.co/galbezalel/sashimi-bigband}{HuggingFace}.
+\subsection{Installation}
+\begin{enumerate}
+    \item Clone our repository and navigate into it: 
+    \begin{quote}
+        \texttt{cd <YOUR\_DIR>/s4-dl-workshop;}
+    \end{quote}
+    \item Add permissions to the installation script and run it: 
+    \begin{quote}
+        \texttt{cd ./tau\_workshop;}\\
+        \texttt{chmod +x .install\_deps.sh;}\\
+        \texttt{./install\_deps.sh;}\
+    \end{quote}
+    \item \textit{Optional, for conditional generation}: Set a \href{https://huggingface.co/docs/hub/en/security-tokens}{HuggingFace Access Token} and download the YouTubeBigBand dataset:
+    \begin{quote}
+        \texttt{export HF\_TOKEN=<YOUR\_HF\_TOKEN>}\\
+        \texttt{cd ./tau\_workshop;}\\
+        \texttt{python download\_dataset.py youtubebigband}\\
+    \end{quote}
+\end{enumerate}
+\subsection{Demo - Generation}
+\subsubsection{Via UI}
+We provide a small application that can generate samples of length between 5 and 60 seconds. The app will employ the 2 layers model for faster generation, however, even the generation of 1 minute of audio on a A100 GPU could take up to an hour. While you wait for your generation to be completed, you can listen to our band's greatest hits.
+To run the app, simply:
+\begin{quote}
+    \texttt{
+        \texttt{cd ./tau\_workshop/app;}\\
+        \texttt{python app.py}\\
+    }
+\end{quote}
+\subsubsection{Via CLI}
+To generate samples via CLI, we refer you to the \href{https://github.com/galbezalel/s4-dl-workshop/tree/main/models/sashimi#audio-generation}{generation documentation within the SaShiMi README.md} file within the repository. The following will use the 8-layers model to generate 30 tracks, each of 10 seconds (a waveform of total 160K steps, at 16Khz) of audio, in the specified \texttt{save\_dir}:
+\begin{quote}
+\texttt{
+    python -m generate \textbackslash \\
+    experiment=audio/sashimi-youtubebigband \textbackslash \\
+    checkpoint\_path=<YOUR\_DIR>/s4-dl-workshop/checkpoints/sashimi\_bigband\_8l.pt \textbackslash \\  
+    n\_samples=30  \textbackslash \\  
+    l\_sample=160000 \textbackslash \\
+    load\_data=false  \textbackslash \\
+    save\_dir=<YOUR\_DIR>/s4-dl-workshop/sashimi/uncond-8-layers \textbackslash \\
+    temp=1.0 \textbackslash \\
+}
+\end{quote}
+\subsection{Listen to generated samples}
+Our app allows you to listen to some of the pieces by our band. All of the samples we generated are available at our \href{https://huggingface.co/datasets/galbezalel/youtube_bigband/blob/main/generated_samples.zip}{dataset on HuggingFace} as well.
 \bibliographystyle{IEEEannot}
 \bibliography{biblio}
 \end{document}
