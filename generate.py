@@ -1,6 +1,8 @@
 import argparse
 import os
 
+os.environ["PYTORCH_ENABLE_MPS_FALLBACK"] = "1"
+
 import numpy as np
 import pytorch_lightning as pl
 import torch
@@ -17,16 +19,18 @@ from src.dataloaders.audio import mu_law_decode
 from src.models.baselines.wavenet import WaveNetModel
 from train import SequenceLightningModule
 
+device = torch.device("mps") if torch.backends.mps.is_available() else torch.device("cpu")
+
 def test_step(model):
     B, L = 2, 64
-    x = torch.ones(B, L, dtype=torch.long).to('cuda')
+    x = torch.ones(B, L, dtype=torch.long).to(device)
 
     # Forward
     batch = (x, None)
     y, _, _ = model(batch) # Forward pass expects a batch which has both x and y (inputs and targets)
 
     # Step
-    model._reset_state(batch, device='cuda')
+    model._reset_state(batch, device=device)
     ys = []
     for x_ in torch.unbind(x, dim=-1):
         y_ = model.step(x_)
@@ -51,7 +55,7 @@ def generate(
 ):
 
     x, _, *_ = batch # (B, L)
-    x = x.to('cuda')
+    x = x.to(device)
     T = x.shape[1] if T is None else T
 
     # Special logic for WaveNet
@@ -61,7 +65,7 @@ def generate(
         x = F.pad(x, (model.model.receptive_field, 0), value=128)
 
     # Set up the initial state
-    model._reset_state(batch, device='cuda')
+    model._reset_state(batch, device=device)
 
     # First sample
     x_t = x[:, 0]
@@ -164,7 +168,7 @@ def main(config: OmegaConf):
     utils.train.print_config(config, resolve=True)
 
     print("Loading model...")
-    assert torch.cuda.is_available(), 'Use a GPU for generation.'
+    # assert torch.cuda.is_available(), 'Use a GPU for generation.'
 
     if config.train.seed is not None:
         pl.seed_everything(config.train.seed, workers=True)
@@ -179,13 +183,13 @@ def main(config: OmegaConf):
     # Load model
     if ckpt_path.endswith('.ckpt'):
         model = SequenceLightningModule.load_from_checkpoint(ckpt_path, config=config)
-        model.to('cuda')
+        model.to(device)
     elif ckpt_path.endswith('.pt'):
         model = SequenceLightningModule(config)
-        model.to('cuda')
+        model.to(device)
 
         # Load checkpoint
-        state_dict = torch.load(ckpt_path, map_location='cuda')
+        state_dict = torch.load(ckpt_path, map_location=device)
         model.load_state_dict(state_dict)
 
     # Setup: required for S4 modules in SaShiMi
